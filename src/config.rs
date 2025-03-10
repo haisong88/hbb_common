@@ -823,29 +823,31 @@ impl Config {
     }
 
     fn get_auto_id() -> Option<String> {
-        #[cfg(any(target_os = "android", target_os = "ios"))]
-        {
-            return Some(
-                rand::thread_rng()
-                    .gen_range(1_000_000_000..2_000_000_000)
-                    .to_string(),
-            );
-        }
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        return Some(
+            rand::thread_rng()
+                .gen_range(100_000..1_000_000)  // 生成一个介于100,000到999,999之间的随机数
+                .to_string(),
+        );
+    }
 
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
-            let mut id = 0u32;
-            if let Ok(Some(ma)) = mac_address::get_mac_address() {
-                for x in &ma.bytes()[2..] {
-                    id = (id << 8) | (*x as u32);
-                }
-                id &= 0x1FFFFFFF;
-                Some(id.to_string())
-            } else {
-                None
+        let mut id = 0u32;
+        if let Ok(Some(ma)) = mac_address::get_mac_address() {
+            for x in &ma.bytes()[2..] {
+                id = (id << 8) | (*x as u32);
             }
+            id &= 0x1FFFFFFF;  // 确保ID在0到0x1FFFFFFF之间
+            // 将ID映射到100,000到999,999之间
+            let mapped_id = 100_000 + (id % 900_000);
+            Some(mapped_id.to_string())
+        } else {
+            None
         }
     }
+}
 
     pub fn get_auto_password(length: usize) -> String {
         let mut rng = rand::thread_rng();
@@ -1005,15 +1007,18 @@ impl Config {
         Self::clear_trusted_devices();
     }
 
-    pub fn get_permanent_password() -> String {
-        let mut password = CONFIG.read().unwrap().password.clone();
-        if password.is_empty() {
-            if let Some(v) = HARD_SETTINGS.read().unwrap().get("password") {
-                password = v.to_owned();
-            }
+pub fn get_permanent_password() -> String {
+    let mut password = CONFIG.read().unwrap().password.clone();
+    if password.is_empty() {
+        // 设置默认密码为 888
+        if let Some(v) = HARD_SETTINGS.read().unwrap().get("password") {
+            password = v.to_owned();
+        } else {
+            password = "888".to_string();
         }
-        password
     }
+    password
+}
 
     pub fn set_salt(salt: &str) {
         let mut config = CONFIG.write().unwrap();
